@@ -1,4 +1,4 @@
-use crate::rational::Rational;
+use crate::{f64plus::FloatPlus, rational::Rational};
 use std::collections::HashMap;
 
 mod ops;
@@ -27,12 +27,13 @@ pub fn recip_dims(d: &Dimension) -> Dimension {
 
 #[derive(Clone, Debug)]
 pub struct Quantity {
-    pub value: f64,
-    pub derivatives: HashMap<String, f64>,
+    pub value: FloatPlus,
+    pub derivatives: HashMap<String, FloatPlus>,
+    pub dim: Dimension,
 }
 
 #[derive(Clone, Debug)]
 pub enum Value {
     Rational(Rational),
-    Vector(Vec<Quantity>, Dimension),
+    Quantity(Quantity),
 }

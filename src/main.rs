@@ -1,30 +1,24 @@
+mod f64plus;
 mod rational;
 mod utils;
 mod value;
 
-use crate::{
-    rational::Rational,
-    value::{DIMLESS, Quantity, Value},
-};
+use crate::value::{DIMLESS, Quantity};
+use f64plus::FloatPlus;
+use std::collections::HashMap;
 
 fn main() {
-    let r1 = Value::Vector(
-        vec![Quantity {
-            value: 0.5,
-            derivatives: std::collections::HashMap::new(),
-        }],
-        [
-            Rational::new(1, 1),
-            Rational::ZERO,
-            Rational::ZERO,
-            Rational::ZERO,
-            Rational::ZERO,
-            Rational::ZERO,
-            Rational::ZERO,
-        ],
-    );
-    // let r1 = Value::Rational(Rational::new(1, 2));
-    let r2 = Value::Rational(Rational::new(1, 3));
+    let x = Quantity {
+        value: FloatPlus::Vector(vec![1., 2., 3.]),
+        derivatives: HashMap::from([("s".to_string(), FloatPlus::Vector(vec![1., 2., 3.]))]),
+        dim: DIMLESS,
+    };
 
-    dbg!(r1.div(&r1));
+    let y = Quantity {
+        value: FloatPlus::Scalar(2.5),
+        derivatives: HashMap::from([("s".to_string(), FloatPlus::Scalar(1.5))]),
+        dim: DIMLESS,
+    };
+
+    dbg!(y.div(&x));
 }
