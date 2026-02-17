@@ -29,7 +29,7 @@ impl Rational {
     };
 
     pub fn new(numer: i32, denom: u32) -> Self {
-        let common = gcd(numer.abs() as u32, denom);
+        let common = gcd(numer.unsigned_abs(), denom);
 
         Self {
             numerator: numer / (common as i32),
@@ -44,12 +44,31 @@ impl Rational {
         }
     }
 
+    pub fn checked_negative(self) -> Option<Self> {
+        Some(Self {
+            numerator: self.numerator.checked_neg()?,
+            denominator: self.denominator,
+        })
+    }
+
     pub fn reciprocal(self) -> Self {
         let sign = self.numerator.signum();
         Self {
             numerator: sign * self.denominator as i32,
             denominator: self.numerator.abs() as u32,
         }
+    }
+
+    pub fn checked_reciprocal(self) -> Option<Self> {
+        if self.denominator > i32::MAX as u32 {
+            return None;
+        }
+
+        let sign = self.numerator.signum();
+        Some(Self {
+            numerator: sign * self.denominator as i32,
+            denominator: self.numerator.unsigned_abs(),
+        })
     }
 
     pub fn add(self, other: Self) -> Self {
@@ -64,8 +83,26 @@ impl Rational {
         )
     }
 
+    pub fn checked_add(self, other: Self) -> Option<Self> {
+        let common = gcd(self.denominator, other.denominator);
+
+        let left_factor = self.denominator / common;
+        let right_factor = other.denominator / common;
+
+        Some(Self::new(
+            self.numerator
+                .checked_mul(right_factor as i32)?
+                .checked_add(other.numerator.checked_mul(left_factor as i32)?)?,
+            left_factor.checked_mul(right_factor)?.checked_mul(common)?,
+        ))
+    }
+
     pub fn sub(self, other: Self) -> Self {
         self.add(other.negative())
+    }
+
+    pub fn checked_sub(self, other: Self) -> Option<Self> {
+        self.checked_add(other.checked_negative()?)
     }
 
     pub fn mul(self, other: Self) -> Self {
@@ -75,7 +112,18 @@ impl Rational {
         )
     }
 
-    pub fn div(self: Self, other: Self) -> Self {
+    pub fn checked_mul(self, other: Self) -> Option<Self> {
+        Some(Self::new(
+            self.numerator.checked_mul(other.numerator)?,
+            self.denominator.checked_mul(other.denominator)?,
+        ))
+    }
+
+    pub fn div(self, other: Self) -> Self {
         self.mul(other.reciprocal())
+    }
+
+    pub fn checked_div(self, other: Self) -> Option<Self> {
+        self.checked_mul(other.checked_reciprocal()?)
     }
 }

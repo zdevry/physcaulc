@@ -3,33 +3,56 @@ use std::collections::HashMap;
 
 mod ops;
 
-// Canonical definitive order:
-// time, length, mass, current, temperature, quantity of substance, luminous intensity
-pub type Dimension = [Rational; 7];
-
-pub const DIMLESS: Dimension = [Rational::ZERO; 7];
-
-pub fn mul_dims(a: Dimension, b: Dimension) -> Dimension {
-    let mut result = [Rational::ZERO; 7];
-    for i in 0..7 {
-        result[i] = a[i].add(b[i])
-    }
-    result
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SIDimension {
+    pub time: Rational,
+    pub length: Rational,
+    pub mass: Rational,
+    pub current: Rational,
+    pub temperature: Rational,
+    pub quantity: Rational,
+    pub luminous: Rational,
 }
 
-pub fn recip_dims(d: &Dimension) -> Dimension {
-    let mut result = [Rational::ZERO; 7];
-    for i in 0..7 {
-        result[i] = d[i].negative();
+pub const DIMLESS: SIDimension = SIDimension {
+    time: Rational::ZERO,
+    length: Rational::ZERO,
+    mass: Rational::ZERO,
+    current: Rational::ZERO,
+    temperature: Rational::ZERO,
+    quantity: Rational::ZERO,
+    luminous: Rational::ZERO,
+};
+
+pub fn mul_dims(a: SIDimension, b: SIDimension) -> SIDimension {
+    SIDimension {
+        time: a.time.add(b.time),
+        length: a.length.add(b.length),
+        mass: a.mass.add(b.mass),
+        current: a.current.add(b.current),
+        temperature: a.temperature.add(b.temperature),
+        quantity: a.quantity.add(b.quantity),
+        luminous: a.luminous.add(b.luminous),
     }
-    result
+}
+
+pub fn recip_dims(d: &SIDimension) -> SIDimension {
+    SIDimension {
+        time: d.time.negative(),
+        length: d.length.negative(),
+        mass: d.mass.negative(),
+        current: d.current.negative(),
+        temperature: d.temperature.negative(),
+        quantity: d.quantity.negative(),
+        luminous: d.luminous.negative(),
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Quantity {
     pub value: FloatPlus,
     pub derivatives: HashMap<String, FloatPlus>,
-    pub dim: Dimension,
+    pub dim: SIDimension,
 }
 
 #[derive(Clone, Debug)]
