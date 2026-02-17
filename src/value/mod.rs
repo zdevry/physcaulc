@@ -1,7 +1,10 @@
 use crate::{f64plus::FloatPlus, rational::Rational};
 use std::collections::HashMap;
 
+mod complex;
+mod func;
 mod ops;
+mod quantity;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SIDimension {
@@ -56,7 +59,45 @@ pub struct Quantity {
 }
 
 #[derive(Clone, Debug)]
+pub struct Complex {
+    pub real: FloatPlus,
+    pub imag: FloatPlus,
+    pub dim: SIDimension,
+}
+
+#[derive(Clone, Debug)]
 pub enum Value {
     Rational(Rational),
     Quantity(Quantity),
+    Complex(Complex),
+}
+
+impl Value {
+    pub fn try_promote_quantity(&self) -> Option<Quantity> {
+        match self {
+            Self::Rational(r) => Some(Quantity {
+                value: FloatPlus::Scalar(r.numerator as f64 / r.denominator as f64),
+                derivatives: HashMap::new(),
+                dim: DIMLESS,
+            }),
+            Self::Quantity(q) => Some(q.clone()),
+            Self::Complex(_) => None,
+        }
+    }
+
+    pub fn promote_to_complex(&self) -> Complex {
+        match self {
+            Self::Rational(r) => Complex {
+                real: FloatPlus::Scalar(r.numerator as f64 / r.denominator as f64),
+                imag: FloatPlus::Scalar(0.),
+                dim: DIMLESS,
+            },
+            Self::Quantity(q) => Complex {
+                real: q.value.clone(),
+                imag: FloatPlus::Scalar(0.),
+                dim: q.dim,
+            },
+            Self::Complex(c) => c.clone(),
+        }
+    }
 }

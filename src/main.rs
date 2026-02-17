@@ -1,18 +1,13 @@
-mod f64plus;
-mod rational;
-mod utils;
-mod value;
+pub mod f64plus;
+pub mod rational;
+pub mod utils;
+pub mod value;
 
-use crate::{
-    rational::Rational,
-    value::{DIMLESS, Quantity, Value},
-};
-use f64plus::FloatPlus;
-use std::collections::HashMap;
+// use crate::{
+//     f64plus::FloatPlus,
+//     rational::Rational,
+//     value::{Complex, DIMLESS, Quantity, Value},
+// };
+// use std::collections::HashMap;
 
-fn main() {
-    let p = Value::Rational(Rational::new(32, 657));
-    let q = Value::Rational(Rational::new(133, 38));
-
-    dbg!(p.add(&q));
-}
+fn main() {}
