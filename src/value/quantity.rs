@@ -1,13 +1,14 @@
-use super::{DIMLESS, Quantity, SIDimension};
+use super::{DIMLESS, Quantity, Rational, SIDimension};
 use crate::{f64plus::FloatPlus, utils};
 use std::collections::HashMap;
 
-fn apply_dimless_func<F, D>(q: &Quantity, f: F, df: F, name: &str) -> Result<Quantity, String>
+fn apply_dimless_func<F, D>(q: &Quantity, f: F, df: D, name: &str) -> Result<Quantity, String>
 where
     F: Fn(f64) -> f64,
+    D: Fn(f64) -> f64,
 {
     if q.dim != DIMLESS {
-        return Err(format!("{name} function cannot accept values with units"));
+        return Err(utils::format_dimless_function_msg(name));
     }
 
     let value = q.value.apply_func(&f);
@@ -69,6 +70,14 @@ where
 }
 
 impl Quantity {
+    pub fn from_rational(r: Rational) -> Self {
+        Quantity {
+            value: FloatPlus::Scalar(r.to_float()),
+            derivatives: HashMap::new(),
+            dim: DIMLESS,
+        }
+    }
+
     pub fn negative(&self) -> Self {
         let mut derivatives = HashMap::new();
 
@@ -133,5 +142,33 @@ impl Quantity {
             |l, dl, r, dr| dl.mul(r).sub(&l.mul(dr)).div(&r.square()),
             |l, r| Ok(super::mul_dims(l, super::recip_dims(&r))),
         )
+    }
+
+    pub fn exp(&self) -> Result<Self, String> {
+        apply_dimless_func(self, f64::exp, f64::exp, "exp")
+    }
+
+    pub fn cos(&self) -> Result<Self, String> {
+        apply_dimless_func(self, f64::cos, |x| -x.sin(), "cos")
+    }
+
+    pub fn sin(&self) -> Result<Self, String> {
+        apply_dimless_func(self, f64::sin, f64::cos, "sin")
+    }
+
+    pub fn tan(&self) -> Result<Self, String> {
+        apply_dimless_func(
+            self,
+            f64::tan,
+            |x| {
+                let sinx = x.sin();
+                1. / (sinx * sinx)
+            },
+            "tan",
+        )
+    }
+
+    pub fn natlog(&self) -> Result<Self, String> {
+        apply_dimless_func(self, f64::ln, |x| 1. / x, "ln")
     }
 }

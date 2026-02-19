@@ -1,7 +1,29 @@
-use super::Complex;
-use crate::utils;
+use super::{Complex, DIMLESS, Quantity, Rational};
+use crate::{f64plus::FloatPlus, utils};
 
 impl Complex {
+    pub fn from_quantity(q: &Quantity) -> Self {
+        Complex {
+            real: q.value.clone(),
+            imag: FloatPlus::Scalar(0.),
+            dim: q.dim,
+        }
+    }
+
+    pub fn from_rational(r: Rational) -> Self {
+        Complex {
+            real: FloatPlus::Scalar(r.to_float()),
+            imag: FloatPlus::Scalar(0.),
+            dim: DIMLESS,
+        }
+    }
+
+    pub fn strictly_compatible(&self, other: &Self) -> Option<(usize, usize)> {
+        self.real
+            .strictly_compatible(&other.real)
+            .or(self.imag.strictly_compatible(&other.imag))
+    }
+
     pub fn negative(&self) -> Self {
         Self {
             real: self.real.negative(),
@@ -10,60 +32,87 @@ impl Complex {
         }
     }
 
+    pub fn mag_si_units(&self) -> FloatPlus {
+        self.real
+            .square()
+            .add(&self.imag.square())
+            .apply_func(f64::sqrt)
+    }
+
+    pub fn arg(&self) -> FloatPlus {
+        self.imag.apply_binary_func(&self.real, f64::atan2)
+    }
+
     pub fn add(&self, other: &Self) -> Result<Self, String> {
         if self.dim != other.dim {
             return Err(utils::format_units_unequal_msg(self.dim, other.dim));
         }
-        match self.real.strictly_compatible(&other.real) {
+        match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
             None => (),
         }
 
-        Ok(Self {
+        Ok(self.unchecked_add(other))
+    }
+
+    pub fn unchecked_add(&self, other: &Self) -> Self {
+        Self {
             real: self.real.add(&other.real),
             imag: self.imag.add(&other.imag),
             dim: self.dim,
-        })
+        }
     }
 
     pub fn sub(&self, other: &Self) -> Result<Self, String> {
         if self.dim != other.dim {
             return Err(utils::format_units_unequal_msg(self.dim, other.dim));
         }
-        match self.real.strictly_compatible(&other.real) {
+        match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
             None => (),
         }
 
-        Ok(Self {
+        Ok(self.unchecked_sub(other))
+    }
+
+    pub fn unchecked_sub(&self, other: &Self) -> Self {
+        Self {
             real: self.real.sub(&other.real),
             imag: self.imag.sub(&other.imag),
             dim: self.dim,
-        })
+        }
     }
 
     pub fn mul(&self, other: &Self) -> Result<Self, String> {
-        match self.real.strictly_compatible(&other.real) {
+        match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
             None => (),
         }
 
-        Ok(Self {
+        Ok(self.unchecked_mul(other))
+    }
+
+    pub fn unchecked_mul(&self, other: &Self) -> Self {
+        Self {
             real: self.real.mul(&other.real).sub(&self.imag.mul(&other.imag)),
             imag: self.imag.mul(&other.real).add(&self.real.mul(&other.imag)),
             dim: super::mul_dims(self.dim, other.dim),
-        })
+        }
     }
 
     pub fn div(&self, other: &Self) -> Result<Self, String> {
-        match self.real.strictly_compatible(&other.real) {
+        match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
             None => (),
         }
 
-        let denom_factors = other.real.square().add(&other.imag.square());
+        Ok(self.unchecked_div(other))
+    }
 
-        Ok(Self {
+    pub fn unchecked_div(&self, other: &Self) -> Self {
+        let denom_factors = other.mag_si_units().square();
+
+        Self {
             real: self
                 .real
                 .mul(&other.real)
@@ -75,6 +124,75 @@ impl Complex {
                 .sub(&self.real.mul(&other.imag))
                 .div(&denom_factors),
             dim: super::mul_dims(self.dim, super::recip_dims(&other.dim)),
+        }
+    }
+
+    pub fn exp(&self) -> Result<Self, String> {
+        if self.dim != DIMLESS {
+            return Err(utils::format_dimless_function_msg("exp"));
+        }
+
+        let magnitude = self.real.apply_func(f64::exp);
+        let phase_real = self.imag.apply_func(f64::cos);
+        let phase_imag = self.imag.apply_func(f64::sin);
+
+        Ok(Self {
+            real: magnitude.mul(&phase_real),
+            imag: magnitude.mul(&phase_imag),
+            dim: DIMLESS,
         })
+    }
+
+    pub fn natlog(&self) -> Result<Self, String> {
+        if self.dim != DIMLESS {
+            return Err(utils::format_dimless_function_msg("ln"));
+        }
+
+        Ok(Self {
+            real: self.mag_si_units().apply_func(f64::ln),
+            imag: self.arg(),
+            dim: DIMLESS,
+        })
+    }
+
+    pub fn cos(&self) -> Result<Self, String> {
+        if self.dim != DIMLESS {
+            return Err(utils::format_dimless_function_msg("cos"));
+        }
+
+        Ok(Self {
+            real: self
+                .real
+                .apply_func(f64::cos)
+                .mul(&self.imag.apply_func(f64::cosh)),
+            imag: self
+                .real
+                .apply_func(f64::sin)
+                .mul(&self.imag.apply_func(f64::sinh))
+                .negative(),
+            dim: DIMLESS,
+        })
+    }
+
+    pub fn sin(&self) -> Result<Self, String> {
+        if self.dim != DIMLESS {
+            return Err(utils::format_dimless_function_msg("sin"));
+        }
+
+        Ok(Self {
+            real: self
+                .real
+                .apply_func(f64::sin)
+                .mul(&self.imag.apply_func(f64::cosh)),
+            imag: self
+                .real
+                .apply_func(f64::cos)
+                .mul(&self.imag.apply_func(f64::sinh)),
+            dim: DIMLESS,
+        })
+    }
+
+    pub fn tan(&self) -> Result<Self, String> {
+        self.sin()?.div(&self.cos()?)
     }
 }

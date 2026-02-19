@@ -51,6 +51,18 @@ pub fn recip_dims(d: &SIDimension) -> SIDimension {
     }
 }
 
+pub fn pow_dims(d: &SIDimension, index: Rational) -> SIDimension {
+    SIDimension {
+        time: d.time.mul(index),
+        length: d.length.mul(index),
+        mass: d.mass.mul(index),
+        current: d.current.mul(index),
+        temperature: d.temperature.mul(index),
+        quantity: d.quantity.mul(index),
+        luminous: d.luminous.mul(index),
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Quantity {
     pub value: FloatPlus,
@@ -73,13 +85,17 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn dimless(&self) -> bool {
+        match self {
+            Self::Rational(_) => true,
+            Self::Quantity(q) => q.dim == DIMLESS,
+            Self::Complex(c) => c.dim == DIMLESS,
+        }
+    }
+
     pub fn try_promote_quantity(&self) -> Option<Quantity> {
         match self {
-            Self::Rational(r) => Some(Quantity {
-                value: FloatPlus::Scalar(r.numerator as f64 / r.denominator as f64),
-                derivatives: HashMap::new(),
-                dim: DIMLESS,
-            }),
+            Self::Rational(r) => Some(Quantity::from_rational(*r)),
             Self::Quantity(q) => Some(q.clone()),
             Self::Complex(_) => None,
         }
@@ -87,16 +103,8 @@ impl Value {
 
     pub fn promote_to_complex(&self) -> Complex {
         match self {
-            Self::Rational(r) => Complex {
-                real: FloatPlus::Scalar(r.numerator as f64 / r.denominator as f64),
-                imag: FloatPlus::Scalar(0.),
-                dim: DIMLESS,
-            },
-            Self::Quantity(q) => Complex {
-                real: q.value.clone(),
-                imag: FloatPlus::Scalar(0.),
-                dim: q.dim,
-            },
+            Self::Rational(r) => Complex::from_rational(*r),
+            Self::Quantity(q) => Complex::from_quantity(&q),
             Self::Complex(c) => c.clone(),
         }
     }

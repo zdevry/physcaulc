@@ -11,3 +11,15 @@ pub fn format_lengths_unequal_msg(m: usize, n: usize) -> String {
 pub fn format_units_unequal_msg(a: SIDimension, b: SIDimension) -> String {
     "Incompatible units".into()
 }
+
+pub fn format_dimless_function_msg(funcname: &str) -> String {
+    format!("{funcname} function cannot accept value with units")
+}
+
+pub fn format_unitless_index_msg(d: SIDimension) -> String {
+    "Unitless index".into()
+}
+
+pub fn format_unitless_base_msg(d: SIDimension) -> String {
+    "Unitless base".into()
+}

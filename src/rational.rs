@@ -22,9 +22,20 @@ impl std::fmt::Debug for Rational {
     }
 }
 
+impl Into<f64> for Rational {
+    fn into(self) -> f64 {
+        self.to_float()
+    }
+}
+
 impl Rational {
     pub const ZERO: Self = Rational {
         numerator: 0,
+        denominator: 1,
+    };
+
+    pub const ONE: Self = Rational {
+        numerator: 1,
         denominator: 1,
     };
 
@@ -35,6 +46,18 @@ impl Rational {
             numerator: numer / (common as i32),
             denominator: denom / common,
         }
+    }
+
+    pub fn is_zero(self) -> bool {
+        self.numerator == 0
+    }
+
+    pub fn is_integral(self) -> bool {
+        self.denominator == 1
+    }
+
+    pub fn to_float(self) -> f64 {
+        self.numerator as f64 / self.denominator as f64
     }
 
     pub fn negative(self) -> Self {

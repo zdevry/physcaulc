@@ -30,8 +30,24 @@ where
     }
 }
 
+impl From<f64> for FloatPlus {
+    fn from(value: f64) -> Self {
+        Self::Scalar(value)
+    }
+}
+
 impl FloatPlus {
     pub const ZERO: FloatPlus = FloatPlus::Scalar(0.);
+
+    pub fn any<P>(&self, cond: P) -> bool
+    where
+        P: Fn(f64) -> bool,
+    {
+        match self {
+            Self::Scalar(s) => cond(*s),
+            Self::Vector(v) => v.iter().any(|s| cond(*s)),
+        }
+    }
 
     pub fn strictly_compatible(&self, other: &Self) -> Option<(usize, usize)> {
         match (self, other) {
@@ -78,5 +94,12 @@ impl FloatPlus {
         F: Fn(f64) -> f64,
     {
         apply_unary_op(self, &f)
+    }
+
+    pub fn apply_binary_func<F>(&self, other: &Self, f: F) -> Self
+    where
+        F: Fn(f64, f64) -> f64,
+    {
+        unchecked_apply_binary_op(self, other, f)
     }
 }
