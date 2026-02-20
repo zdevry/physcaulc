@@ -1,5 +1,5 @@
-use super::{Complex, Quantity, Rational, SIDimension};
-use crate::{f64plus::FloatPlus, utils};
+use super::{Complex, Quantity, Rational, SIDimension, ValueError};
+use crate::f64plus::FloatPlus;
 
 impl Complex {
     pub fn from_quantity(q: &Quantity) -> Self {
@@ -43,12 +43,12 @@ impl Complex {
         self.imag.apply_binary_func(&self.real, f64::atan2)
     }
 
-    pub fn add(&self, other: &Self) -> Result<Self, String> {
+    pub fn add(&self, other: &Self) -> Result<Self, ValueError> {
         if self.dim != other.dim {
-            return Err(utils::format_units_unequal_msg(&self.dim, &other.dim));
+            return Err(ValueError::UnequalDimensions(self.dim, other.dim));
         }
         match self.strictly_compatible(other) {
-            Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+            Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
             None => (),
         }
 
@@ -63,12 +63,12 @@ impl Complex {
         }
     }
 
-    pub fn sub(&self, other: &Self) -> Result<Self, String> {
+    pub fn sub(&self, other: &Self) -> Result<Self, ValueError> {
         if self.dim != other.dim {
-            return Err(utils::format_units_unequal_msg(&self.dim, &other.dim));
+            return Err(ValueError::UnequalDimensions(self.dim, other.dim));
         }
         match self.strictly_compatible(other) {
-            Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+            Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
             None => (),
         }
 
@@ -83,9 +83,9 @@ impl Complex {
         }
     }
 
-    pub fn mul(&self, other: &Self) -> Result<Self, String> {
+    pub fn mul(&self, other: &Self) -> Result<Self, ValueError> {
         match self.strictly_compatible(other) {
-            Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+            Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
             None => (),
         }
 
@@ -100,9 +100,9 @@ impl Complex {
         }
     }
 
-    pub fn div(&self, other: &Self) -> Result<Self, String> {
+    pub fn div(&self, other: &Self) -> Result<Self, ValueError> {
         match self.strictly_compatible(other) {
-            Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+            Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
             None => (),
         }
 
@@ -127,9 +127,9 @@ impl Complex {
         }
     }
 
-    pub fn exp(&self) -> Result<Self, String> {
+    pub fn exp(&self) -> Result<Self, ValueError> {
         if self.dim != SIDimension::DIMLESS {
-            return Err(utils::format_dimless_function_msg("exp"));
+            return Err(ValueError::NotDimensionlessOperand(self.dim));
         }
 
         let magnitude = self.real.apply_func(f64::exp);
@@ -143,9 +143,9 @@ impl Complex {
         })
     }
 
-    pub fn natlog(&self) -> Result<Self, String> {
+    pub fn natlog(&self) -> Result<Self, ValueError> {
         if self.dim != SIDimension::DIMLESS {
-            return Err(utils::format_dimless_function_msg("ln"));
+            return Err(ValueError::NotDimensionlessOperand(self.dim));
         }
 
         Ok(Self {
@@ -155,9 +155,9 @@ impl Complex {
         })
     }
 
-    pub fn cos(&self) -> Result<Self, String> {
+    pub fn cos(&self) -> Result<Self, ValueError> {
         if self.dim != SIDimension::DIMLESS {
-            return Err(utils::format_dimless_function_msg("cos"));
+            return Err(ValueError::NotDimensionlessOperand(self.dim));
         }
 
         Ok(Self {
@@ -174,9 +174,9 @@ impl Complex {
         })
     }
 
-    pub fn sin(&self) -> Result<Self, String> {
+    pub fn sin(&self) -> Result<Self, ValueError> {
         if self.dim != SIDimension::DIMLESS {
-            return Err(utils::format_dimless_function_msg("sin"));
+            return Err(ValueError::NotDimensionlessOperand(self.dim));
         }
 
         Ok(Self {
@@ -192,7 +192,7 @@ impl Complex {
         })
     }
 
-    pub fn tan(&self) -> Result<Self, String> {
+    pub fn tan(&self) -> Result<Self, ValueError> {
         self.sin()?.div(&self.cos()?)
     }
 }

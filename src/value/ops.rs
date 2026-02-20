@@ -1,5 +1,5 @@
-use super::{Complex, Quantity, Rational, SIDimension, Value};
-use crate::{f64plus::FloatPlus, utils};
+use super::{Complex, Quantity, Rational, SIDimension, Value, ValueError};
+use crate::f64plus::FloatPlus;
 use std::collections::HashMap;
 
 fn apply_value_binary_op<F, G, H>(
@@ -8,14 +8,14 @@ fn apply_value_binary_op<F, G, H>(
     rational_op: F,
     quantity_op: G,
     complex_op: H,
-) -> Result<Value, String>
+) -> Result<Value, ValueError>
 where
     F: Fn(Rational, Rational) -> Option<Rational>,
-    G: Fn(&Quantity, &Quantity) -> Result<Quantity, String>,
-    H: Fn(&Complex, &Complex) -> Result<Complex, String>,
+    G: Fn(&Quantity, &Quantity) -> Result<Quantity, ValueError>,
+    H: Fn(&Complex, &Complex) -> Result<Complex, ValueError>,
 {
     match (lhs, rhs) {
-        (Value::Rational(l), Value::Rational(r)) => match rational_op(*l, *r) {
+        (&Value::Rational(l), &Value::Rational(r)) => match rational_op(l, r) {
             Some(result) => return Ok(result.into()),
             _ => (),
         },
@@ -34,7 +34,7 @@ where
 }
 
 impl Value {
-    pub fn add(&self, other: &Self) -> Result<Self, String> {
+    pub fn add(&self, other: &Self) -> Result<Self, ValueError> {
         apply_value_binary_op(
             self,
             other,
@@ -44,7 +44,7 @@ impl Value {
         )
     }
 
-    pub fn sub(&self, other: &Self) -> Result<Self, String> {
+    pub fn sub(&self, other: &Self) -> Result<Self, ValueError> {
         apply_value_binary_op(
             self,
             other,
@@ -54,7 +54,7 @@ impl Value {
         )
     }
 
-    pub fn mul(&self, other: &Self) -> Result<Self, String> {
+    pub fn mul(&self, other: &Self) -> Result<Self, ValueError> {
         apply_value_binary_op(
             self,
             other,
@@ -64,7 +64,7 @@ impl Value {
         )
     }
 
-    pub fn div(&self, other: &Self) -> Result<Self, String> {
+    pub fn div(&self, other: &Self) -> Result<Self, ValueError> {
         apply_value_binary_op(
             self,
             other,
@@ -84,18 +84,18 @@ impl Value {
     // 7. Complex^Rational -> Complex; units
     // 8. Complex^Quantity -> =>9
     // 9. Complex^Complex -> Complex; unitless
-    pub fn pow(&self, other: &Self) -> Result<Self, String> {
+    pub fn pow(&self, other: &Self) -> Result<Self, ValueError> {
         match other {
-            Self::Rational(e) => match self {
-                Self::Rational(b) => {
+            &Self::Rational(e) => match self {
+                &Self::Rational(b) => {
                     if e.is_integral() {
-                        Ok(pow_ri(*b, e.numerator)?.into())
+                        Ok(pow_ri(b, e.numerator)?.into())
                     } else {
-                        Ok(pow_qr(&Quantity::from_rational(*b), *e))
+                        Ok(pow_qr(&Quantity::from_rational(b), e))
                     }
                 }
-                Self::Quantity(b) => Ok(pow_qr(b, *e)),
-                Self::Complex(b) => Ok(pow_cr(b, *e).into()),
+                Self::Quantity(b) => Ok(pow_qr(b, e)),
+                Self::Complex(b) => Ok(pow_cr(b, e).into()),
             },
             Self::Quantity(e) => match self.try_promote_quantity() {
                 Some(b) => pow_qq(&b, e),
@@ -106,13 +106,13 @@ impl Value {
     }
 }
 
-fn pow_ri(base: Rational, index: i32) -> Result<Rational, String> {
+fn pow_ri(base: Rational, index: i32) -> Result<Rational, ValueError> {
     let abs_idx = index.unsigned_abs();
     let result = Rational::new(base.numerator.pow(abs_idx), base.denominator.pow(abs_idx));
 
     if index < 0 {
         if base.is_zero() {
-            Err("Division by zero".into())
+            Err(ValueError::DivisionByZero)
         } else {
             Ok(result.reciprocal())
         }
@@ -174,24 +174,24 @@ fn pow_cr(base: &Complex, index: Rational) -> Complex {
     }
 }
 
-fn pow_cc(base: &Complex, index: &Complex) -> Result<Complex, String> {
+fn pow_cc(base: &Complex, index: &Complex) -> Result<Complex, ValueError> {
     match base.strictly_compatible(index) {
-        Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+        Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
         None => (),
     }
 
     if index.dim != SIDimension::DIMLESS {
-        return Err(utils::format_unitless_index_msg(index.dim));
+        return Err(ValueError::NotDimensionlessOperand(index.dim));
     }
     if base.dim != SIDimension::DIMLESS {
-        return Err(utils::format_unitless_base_msg(base.dim));
+        return Err(ValueError::UnsupportedBaseDimension(base.dim));
     }
 
     // z^w = exp(w ln z)
     Ok(base.natlog().unwrap().unchecked_mul(&index).exp().unwrap())
 }
 
-fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, String> {
+fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, ValueError> {
     if base.value.any(|x| x < 0.) {
         return Ok(pow_cc(
             &Complex::from_quantity(base),
@@ -201,15 +201,15 @@ fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, String> {
     }
 
     match base.value.strictly_compatible(&index.value) {
-        Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+        Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
         None => (),
     }
 
     if index.dim != SIDimension::DIMLESS {
-        return Err(utils::format_unitless_index_msg(index.dim));
+        return Err(ValueError::NotDimensionlessOperand(index.dim));
     }
     if base.dim != SIDimension::DIMLESS {
-        return Err(utils::format_unitless_base_msg(base.dim));
+        return Err(ValueError::UnsupportedBaseDimension(base.dim));
     }
 
     let result_value = base.value.apply_binary_func(&index.value, f64::powf);

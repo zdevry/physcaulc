@@ -6,7 +6,7 @@ mod func;
 mod ops;
 mod quantity;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct SIDimension {
     pub time: Rational,
     pub length: Rational,
@@ -128,4 +128,13 @@ impl Value {
             Self::Complex(c) => c.clone(),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum ValueError {
+    UnequalVectorLength(usize, usize),
+    UnequalDimensions(SIDimension, SIDimension),
+    NotDimensionlessOperand(SIDimension),
+    UnsupportedBaseDimension(SIDimension),
+    DivisionByZero,
 }

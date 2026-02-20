@@ -21,20 +21,32 @@ where
     F: Fn(f64, f64) -> f64,
 {
     match (lhs, rhs) {
-        (Scalar(l), Scalar(r)) => Scalar(op(*l, *r)),
-        (Vector(vl), Scalar(r)) => Vector(vl.into_iter().map(|l| op(*l, *r)).collect()),
-        (Scalar(l), Vector(vr)) => Vector(vr.into_iter().map(|r| op(*l, *r)).collect()),
+        (&Scalar(l), &Scalar(r)) => Scalar(op(l, r)),
+        (Vector(vl), &Scalar(r)) => Vector(vl.into_iter().map(|&l| op(l, r)).collect()),
+        (&Scalar(l), Vector(vr)) => Vector(vr.into_iter().map(|&r| op(l, r)).collect()),
         (Vector(vl), Vector(vr)) => {
-            Vector(vl.into_iter().zip(vr).map(|(l, r)| op(*l, *r)).collect())
+            Vector(vl.into_iter().zip(vr).map(|(&l, &r)| op(l, r)).collect())
         }
     }
 }
 
-impl From<f64> for FloatPlus {
-    fn from(value: f64) -> Self {
-        Self::Scalar(value)
+impl<T> From<T> for FloatPlus
+where
+    T: AsRef<[f64]>,
+{
+    fn from(value: T) -> Self {
+        match value.as_ref() {
+            &[x] => Self::Scalar(x),
+            v => Self::Vector(v.iter().cloned().collect()),
+        }
     }
 }
+
+// impl From<f64> for FloatPlus {
+//     fn from(value: f64) -> Self {
+//         Self::Scalar(value)
+//     }
+// }
 
 impl FloatPlus {
     pub const ZERO: FloatPlus = FloatPlus::Scalar(0.);

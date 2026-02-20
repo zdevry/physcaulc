@@ -1,14 +1,14 @@
-use super::{Quantity, Rational, SIDimension};
-use crate::{f64plus::FloatPlus, utils};
+use super::{Quantity, Rational, SIDimension, ValueError};
+use crate::f64plus::FloatPlus;
 use std::collections::HashMap;
 
-fn apply_dimless_func<F, D>(q: &Quantity, f: F, df: D, name: &str) -> Result<Quantity, String>
+fn apply_dimless_func<F, D>(q: &Quantity, f: F, df: D) -> Result<Quantity, ValueError>
 where
     F: Fn(f64) -> f64,
     D: Fn(f64) -> f64,
 {
     if q.dim != SIDimension::DIMLESS {
-        return Err(utils::format_dimless_function_msg(name));
+        return Err(ValueError::NotDimensionlessOperand(q.dim));
     }
 
     let value = q.value.apply_func(&f);
@@ -31,15 +31,15 @@ fn apply_binary_op<F, G, H>(
     op: F,
     dop: G,
     dim_op: H,
-) -> Result<Quantity, String>
+) -> Result<Quantity, ValueError>
 where
     F: Fn(&FloatPlus, &FloatPlus) -> FloatPlus,
     G: Fn(&FloatPlus, &FloatPlus, &FloatPlus, &FloatPlus) -> FloatPlus,
-    H: Fn(&SIDimension, &SIDimension) -> Result<SIDimension, String>,
+    H: Fn(&SIDimension, &SIDimension) -> Result<SIDimension, ValueError>,
 {
     let dim = dim_op(&lhs.dim, &rhs.dim)?;
     match lhs.value.strictly_compatible(&rhs.value) {
-        Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
+        Some((m, n)) => return Err(ValueError::UnequalVectorLength(m, n)),
         None => (),
     }
     let value = op(&lhs.value, &rhs.value);
@@ -92,15 +92,15 @@ impl Quantity {
         }
     }
 
-    pub fn add(&self, other: &Self) -> Result<Self, String> {
+    pub fn add(&self, other: &Self) -> Result<Self, ValueError> {
         apply_binary_op(
             self,
             other,
             FloatPlus::add,
             |_, dl, _, dr| dl.add(dr),
-            |l, r| {
+            |&l, &r| {
                 if l != r {
-                    Err(utils::format_units_unequal_msg(l, r))
+                    Err(ValueError::UnequalDimensions(l, r))
                 } else {
                     Ok(l.clone())
                 }
@@ -108,15 +108,15 @@ impl Quantity {
         )
     }
 
-    pub fn sub(&self, other: &Self) -> Result<Self, String> {
+    pub fn sub(&self, other: &Self) -> Result<Self, ValueError> {
         apply_binary_op(
             self,
             other,
             FloatPlus::sub,
             |_, dl, _, dr| dl.sub(dr),
-            |l, r| {
+            |&l, &r| {
                 if l != r {
-                    Err(utils::format_units_unequal_msg(l, r))
+                    Err(ValueError::UnequalDimensions(l, r))
                 } else {
                     Ok(l.clone())
                 }
@@ -124,7 +124,7 @@ impl Quantity {
         )
     }
 
-    pub fn mul(&self, other: &Self) -> Result<Self, String> {
+    pub fn mul(&self, other: &Self) -> Result<Self, ValueError> {
         apply_binary_op(
             self,
             other,
@@ -134,7 +134,7 @@ impl Quantity {
         )
     }
 
-    pub fn div(&self, other: &Self) -> Result<Self, String> {
+    pub fn div(&self, other: &Self) -> Result<Self, ValueError> {
         apply_binary_op(
             self,
             other,
@@ -144,31 +144,26 @@ impl Quantity {
         )
     }
 
-    pub fn exp(&self) -> Result<Self, String> {
-        apply_dimless_func(self, f64::exp, f64::exp, "exp")
+    pub fn exp(&self) -> Result<Self, ValueError> {
+        apply_dimless_func(self, f64::exp, f64::exp)
     }
 
-    pub fn cos(&self) -> Result<Self, String> {
-        apply_dimless_func(self, f64::cos, |x| -x.sin(), "cos")
+    pub fn cos(&self) -> Result<Self, ValueError> {
+        apply_dimless_func(self, f64::cos, |x| -x.sin())
     }
 
-    pub fn sin(&self) -> Result<Self, String> {
-        apply_dimless_func(self, f64::sin, f64::cos, "sin")
+    pub fn sin(&self) -> Result<Self, ValueError> {
+        apply_dimless_func(self, f64::sin, f64::cos)
     }
 
-    pub fn tan(&self) -> Result<Self, String> {
-        apply_dimless_func(
-            self,
-            f64::tan,
-            |x| {
-                let sinx = x.sin();
-                1. / (sinx * sinx)
-            },
-            "tan",
-        )
+    pub fn tan(&self) -> Result<Self, ValueError> {
+        apply_dimless_func(self, f64::tan, |x| {
+            let sinx = x.sin();
+            1. / (sinx * sinx)
+        })
     }
 
-    pub fn natlog(&self) -> Result<Self, String> {
-        apply_dimless_func(self, f64::ln, |x| 1. / x, "ln")
+    pub fn natlog(&self) -> Result<Self, ValueError> {
+        apply_dimless_func(self, f64::ln, |x| 1. / x)
     }
 }

@@ -1,6 +1,6 @@
 use crate::utils::gcd;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 pub struct Rational {
     pub numerator: i32,
     pub denominator: u32,
