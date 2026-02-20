@@ -8,8 +8,8 @@ pub struct Rational {
 
 impl std::fmt::Display for Rational {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.numerator == 0 {
-            write!(f, "0")
+        if self.denominator == 1 {
+            write!(f, "{}", self.numerator)
         } else {
             write!(f, "{}/{}", self.numerator, self.denominator)
         }
@@ -25,6 +25,12 @@ impl std::fmt::Debug for Rational {
 impl Into<f64> for Rational {
     fn into(self) -> f64 {
         self.to_float()
+    }
+}
+
+impl From<i32> for Rational {
+    fn from(value: i32) -> Self {
+        Self::new(value, 1)
     }
 }
 

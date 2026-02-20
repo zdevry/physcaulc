@@ -1,4 +1,4 @@
-use super::{Complex, DIMLESS, Quantity, Rational};
+use super::{Complex, Quantity, Rational, SIDimension};
 use crate::{f64plus::FloatPlus, utils};
 
 impl Complex {
@@ -14,7 +14,7 @@ impl Complex {
         Complex {
             real: FloatPlus::Scalar(r.to_float()),
             imag: FloatPlus::Scalar(0.),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         }
     }
 
@@ -45,7 +45,7 @@ impl Complex {
 
     pub fn add(&self, other: &Self) -> Result<Self, String> {
         if self.dim != other.dim {
-            return Err(utils::format_units_unequal_msg(self.dim, other.dim));
+            return Err(utils::format_units_unequal_msg(&self.dim, &other.dim));
         }
         match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
@@ -65,7 +65,7 @@ impl Complex {
 
     pub fn sub(&self, other: &Self) -> Result<Self, String> {
         if self.dim != other.dim {
-            return Err(utils::format_units_unequal_msg(self.dim, other.dim));
+            return Err(utils::format_units_unequal_msg(&self.dim, &other.dim));
         }
         match self.strictly_compatible(other) {
             Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
@@ -96,7 +96,7 @@ impl Complex {
         Self {
             real: self.real.mul(&other.real).sub(&self.imag.mul(&other.imag)),
             imag: self.imag.mul(&other.real).add(&self.real.mul(&other.imag)),
-            dim: super::mul_dims(self.dim, other.dim),
+            dim: self.dim.mul(&other.dim),
         }
     }
 
@@ -123,12 +123,12 @@ impl Complex {
                 .mul(&other.real)
                 .sub(&self.real.mul(&other.imag))
                 .div(&denom_factors),
-            dim: super::mul_dims(self.dim, super::recip_dims(&other.dim)),
+            dim: self.dim.mul(&other.dim.reciprocal()),
         }
     }
 
     pub fn exp(&self) -> Result<Self, String> {
-        if self.dim != DIMLESS {
+        if self.dim != SIDimension::DIMLESS {
             return Err(utils::format_dimless_function_msg("exp"));
         }
 
@@ -139,24 +139,24 @@ impl Complex {
         Ok(Self {
             real: magnitude.mul(&phase_real),
             imag: magnitude.mul(&phase_imag),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         })
     }
 
     pub fn natlog(&self) -> Result<Self, String> {
-        if self.dim != DIMLESS {
+        if self.dim != SIDimension::DIMLESS {
             return Err(utils::format_dimless_function_msg("ln"));
         }
 
         Ok(Self {
             real: self.mag_si_units().apply_func(f64::ln),
             imag: self.arg(),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         })
     }
 
     pub fn cos(&self) -> Result<Self, String> {
-        if self.dim != DIMLESS {
+        if self.dim != SIDimension::DIMLESS {
             return Err(utils::format_dimless_function_msg("cos"));
         }
 
@@ -170,12 +170,12 @@ impl Complex {
                 .apply_func(f64::sin)
                 .mul(&self.imag.apply_func(f64::sinh))
                 .negative(),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         })
     }
 
     pub fn sin(&self) -> Result<Self, String> {
-        if self.dim != DIMLESS {
+        if self.dim != SIDimension::DIMLESS {
             return Err(utils::format_dimless_function_msg("sin"));
         }
 
@@ -188,7 +188,7 @@ impl Complex {
                 .real
                 .apply_func(f64::cos)
                 .mul(&self.imag.apply_func(f64::sinh)),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         })
     }
 

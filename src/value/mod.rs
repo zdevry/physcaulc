@@ -17,49 +17,51 @@ pub struct SIDimension {
     pub luminous: Rational,
 }
 
-pub const DIMLESS: SIDimension = SIDimension {
-    time: Rational::ZERO,
-    length: Rational::ZERO,
-    mass: Rational::ZERO,
-    current: Rational::ZERO,
-    temperature: Rational::ZERO,
-    quantity: Rational::ZERO,
-    luminous: Rational::ZERO,
-};
+impl SIDimension {
+    pub const DIMLESS: Self = Self {
+        time: Rational::ZERO,
+        length: Rational::ZERO,
+        mass: Rational::ZERO,
+        current: Rational::ZERO,
+        temperature: Rational::ZERO,
+        quantity: Rational::ZERO,
+        luminous: Rational::ZERO,
+    };
 
-pub fn mul_dims(a: SIDimension, b: SIDimension) -> SIDimension {
-    SIDimension {
-        time: a.time.add(b.time),
-        length: a.length.add(b.length),
-        mass: a.mass.add(b.mass),
-        current: a.current.add(b.current),
-        temperature: a.temperature.add(b.temperature),
-        quantity: a.quantity.add(b.quantity),
-        luminous: a.luminous.add(b.luminous),
+    pub fn mul(&self, other: &Self) -> Self {
+        Self {
+            time: self.time.add(other.time),
+            length: self.length.add(other.length),
+            mass: self.mass.add(other.mass),
+            current: self.current.add(other.current),
+            temperature: self.temperature.add(other.temperature),
+            quantity: self.quantity.add(other.quantity),
+            luminous: self.luminous.add(other.luminous),
+        }
     }
-}
 
-pub fn recip_dims(d: &SIDimension) -> SIDimension {
-    SIDimension {
-        time: d.time.negative(),
-        length: d.length.negative(),
-        mass: d.mass.negative(),
-        current: d.current.negative(),
-        temperature: d.temperature.negative(),
-        quantity: d.quantity.negative(),
-        luminous: d.luminous.negative(),
+    pub fn reciprocal(&self) -> Self {
+        Self {
+            time: self.time.negative(),
+            length: self.length.negative(),
+            mass: self.mass.negative(),
+            current: self.current.negative(),
+            temperature: self.temperature.negative(),
+            quantity: self.quantity.negative(),
+            luminous: self.luminous.negative(),
+        }
     }
-}
 
-pub fn pow_dims(d: &SIDimension, index: Rational) -> SIDimension {
-    SIDimension {
-        time: d.time.mul(index),
-        length: d.length.mul(index),
-        mass: d.mass.mul(index),
-        current: d.current.mul(index),
-        temperature: d.temperature.mul(index),
-        quantity: d.quantity.mul(index),
-        luminous: d.luminous.mul(index),
+    pub fn pow(&self, e: Rational) -> Self {
+        Self {
+            time: self.time.mul(e),
+            length: self.length.mul(e),
+            mass: self.mass.mul(e),
+            current: self.current.mul(e),
+            temperature: self.temperature.mul(e),
+            quantity: self.quantity.mul(e),
+            luminous: self.luminous.mul(e),
+        }
     }
 }
 
@@ -84,12 +86,30 @@ pub enum Value {
     Complex(Complex),
 }
 
+impl From<Rational> for Value {
+    fn from(value: Rational) -> Self {
+        Self::Rational(value)
+    }
+}
+
+impl From<Quantity> for Value {
+    fn from(value: Quantity) -> Self {
+        Self::Quantity(value)
+    }
+}
+
+impl From<Complex> for Value {
+    fn from(value: Complex) -> Self {
+        Self::Complex(value)
+    }
+}
+
 impl Value {
     pub fn dimless(&self) -> bool {
         match self {
             Self::Rational(_) => true,
-            Self::Quantity(q) => q.dim == DIMLESS,
-            Self::Complex(c) => c.dim == DIMLESS,
+            Self::Quantity(q) => q.dim == SIDimension::DIMLESS,
+            Self::Complex(c) => c.dim == SIDimension::DIMLESS,
         }
     }
 

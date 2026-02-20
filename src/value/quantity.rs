@@ -1,4 +1,4 @@
-use super::{DIMLESS, Quantity, Rational, SIDimension};
+use super::{Quantity, Rational, SIDimension};
 use crate::{f64plus::FloatPlus, utils};
 use std::collections::HashMap;
 
@@ -7,7 +7,7 @@ where
     F: Fn(f64) -> f64,
     D: Fn(f64) -> f64,
 {
-    if q.dim != DIMLESS {
+    if q.dim != SIDimension::DIMLESS {
         return Err(utils::format_dimless_function_msg(name));
     }
 
@@ -21,7 +21,7 @@ where
     Ok(Quantity {
         value,
         derivatives,
-        dim: DIMLESS,
+        dim: SIDimension::DIMLESS,
     })
 }
 
@@ -35,9 +35,9 @@ fn apply_binary_op<F, G, H>(
 where
     F: Fn(&FloatPlus, &FloatPlus) -> FloatPlus,
     G: Fn(&FloatPlus, &FloatPlus, &FloatPlus, &FloatPlus) -> FloatPlus,
-    H: Fn(SIDimension, SIDimension) -> Result<SIDimension, String>,
+    H: Fn(&SIDimension, &SIDimension) -> Result<SIDimension, String>,
 {
-    let dim = dim_op(lhs.dim, rhs.dim)?;
+    let dim = dim_op(&lhs.dim, &rhs.dim)?;
     match lhs.value.strictly_compatible(&rhs.value) {
         Some((m, n)) => return Err(utils::format_lengths_unequal_msg(m, n)),
         None => (),
@@ -74,7 +74,7 @@ impl Quantity {
         Quantity {
             value: FloatPlus::Scalar(r.to_float()),
             derivatives: HashMap::new(),
-            dim: DIMLESS,
+            dim: SIDimension::DIMLESS,
         }
     }
 
@@ -102,7 +102,7 @@ impl Quantity {
                 if l != r {
                     Err(utils::format_units_unequal_msg(l, r))
                 } else {
-                    Ok(l)
+                    Ok(l.clone())
                 }
             },
         )
@@ -118,7 +118,7 @@ impl Quantity {
                 if l != r {
                     Err(utils::format_units_unequal_msg(l, r))
                 } else {
-                    Ok(l)
+                    Ok(l.clone())
                 }
             },
         )
@@ -130,7 +130,7 @@ impl Quantity {
             other,
             FloatPlus::mul,
             |l, dl, r, dr| dl.mul(r).add(&l.mul(dr)),
-            |l, r| Ok(super::mul_dims(l, r)),
+            |l, r| Ok(l.mul(r)),
         )
     }
 
@@ -140,7 +140,7 @@ impl Quantity {
             other,
             FloatPlus::div,
             |l, dl, r, dr| dl.mul(r).sub(&l.mul(dr)).div(&r.square()),
-            |l, r| Ok(super::mul_dims(l, super::recip_dims(&r))),
+            |l, r| Ok(l.mul(&r.reciprocal())),
         )
     }
 

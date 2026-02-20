@@ -1,7 +1,5 @@
+use super::{Complex, Quantity, Rational, SIDimension, Value};
 use crate::{f64plus::FloatPlus, utils};
-
-use super::{Complex, Quantity, Rational, Value};
-
 use std::collections::HashMap;
 
 fn apply_value_binary_op<F, G, H>(
@@ -18,21 +16,21 @@ where
 {
     match (lhs, rhs) {
         (Value::Rational(l), Value::Rational(r)) => match rational_op(*l, *r) {
-            Some(result) => return Ok(Value::Rational(result)),
+            Some(result) => return Ok(result.into()),
             _ => (),
         },
         _ => (),
     }
 
     match lhs.try_promote_quantity().zip(rhs.try_promote_quantity()) {
-        Some((ql, qr)) => return Ok(Value::Quantity(quantity_op(&ql, &qr)?)),
+        Some((ql, qr)) => return Ok(quantity_op(&ql, &qr)?.into()),
         None => (),
     }
 
     let cl = lhs.promote_to_complex();
     let cr = rhs.promote_to_complex();
 
-    Ok(Value::Complex(complex_op(&cl, &cr)?))
+    Ok(complex_op(&cl, &cr)?.into())
 }
 
 impl Value {
@@ -91,31 +89,24 @@ impl Value {
             Self::Rational(e) => match self {
                 Self::Rational(b) => {
                     if e.is_integral() {
-                        Ok(Self::Rational(pow_ri(*b, e.numerator)?))
+                        Ok(pow_ri(*b, e.numerator)?.into())
                     } else {
                         Ok(pow_qr(&Quantity::from_rational(*b), *e))
                     }
                 }
                 Self::Quantity(b) => Ok(pow_qr(b, *e)),
-                Self::Complex(b) => Ok(Self::Complex(pow_cr(b, *e))),
+                Self::Complex(b) => Ok(pow_cr(b, *e).into()),
             },
             Self::Quantity(e) => match self.try_promote_quantity() {
                 Some(b) => pow_qq(&b, e),
-                None => Ok(Self::Complex(pow_cc(
-                    &self.promote_to_complex(),
-                    &Complex::from_quantity(e),
-                )?)),
+                None => Ok(pow_cc(&self.promote_to_complex(), &Complex::from_quantity(e))?.into()),
             },
-            Self::Complex(e) => Ok(Self::Complex(pow_cc(&self.promote_to_complex(), e)?)),
+            Self::Complex(e) => Ok(pow_cc(&self.promote_to_complex(), e)?.into()),
         }
     }
 }
 
 fn pow_ri(base: Rational, index: i32) -> Result<Rational, String> {
-    if index == 0 {
-        return Ok(Rational::new(1, 1));
-    }
-
     let abs_idx = index.unsigned_abs();
     let result = Rational::new(base.numerator.pow(abs_idx), base.denominator.pow(abs_idx));
 
@@ -133,7 +124,7 @@ fn pow_ri(base: Rational, index: i32) -> Result<Rational, String> {
 fn pow_qr(base: &Quantity, index: Rational) -> Value {
     // Negative raised to odd denominators are treated differently
     if base.value.any(|x| x < 0.) && index.denominator % 2 == 0 {
-        return Value::Complex(pow_cr(&Complex::from_quantity(base), index));
+        return pow_cr(&Complex::from_quantity(base), index).into();
     }
 
     let result_value = pow_fpr(&base.value, index);
@@ -149,11 +140,12 @@ fn pow_qr(base: &Quantity, index: Rational) -> Value {
         );
     }
 
-    Value::Quantity(Quantity {
+    Quantity {
         value: result_value,
         derivatives: result_derivatives,
-        dim: super::pow_dims(&base.dim, index),
-    })
+        dim: base.dim.pow(index),
+    }
+    .into()
 }
 
 fn pow_fpr(base: &FloatPlus, index: Rational) -> FloatPlus {
@@ -178,7 +170,7 @@ fn pow_cr(base: &Complex, index: Rational) -> Complex {
     Complex {
         real: result_mag.mul(&phase_real),
         imag: result_mag.mul(&phase_imag),
-        dim: super::pow_dims(&base.dim, index),
+        dim: base.dim.pow(index),
     }
 }
 
@@ -188,23 +180,24 @@ fn pow_cc(base: &Complex, index: &Complex) -> Result<Complex, String> {
         None => (),
     }
 
-    if index.dim != super::DIMLESS {
+    if index.dim != SIDimension::DIMLESS {
         return Err(utils::format_unitless_index_msg(index.dim));
     }
-    if base.dim != super::DIMLESS {
+    if base.dim != SIDimension::DIMLESS {
         return Err(utils::format_unitless_base_msg(base.dim));
     }
 
     // z^w = exp(w ln z)
-    Ok(index.unchecked_mul(&base.natlog().unwrap()).exp().unwrap())
+    Ok(base.natlog().unwrap().unchecked_mul(&index).exp().unwrap())
 }
 
 fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, String> {
     if base.value.any(|x| x < 0.) {
-        return Ok(Value::Complex(pow_cc(
+        return Ok(pow_cc(
             &Complex::from_quantity(base),
             &Complex::from_quantity(index),
-        )?));
+        )?
+        .into());
     }
 
     match base.value.strictly_compatible(&index.value) {
@@ -212,10 +205,10 @@ fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, String> {
         None => (),
     }
 
-    if index.dim != super::DIMLESS {
+    if index.dim != SIDimension::DIMLESS {
         return Err(utils::format_unitless_index_msg(index.dim));
     }
-    if base.dim != super::DIMLESS {
+    if base.dim != SIDimension::DIMLESS {
         return Err(utils::format_unitless_base_msg(base.dim));
     }
 
@@ -253,11 +246,12 @@ fn pow_qq(base: &Quantity, index: &Quantity) -> Result<Value, String> {
         );
     }
 
-    Ok(Value::Quantity(Quantity {
+    Ok(Quantity {
         value: result_value,
         derivatives: result_derivatives,
-        dim: super::DIMLESS,
-    }))
+        dim: SIDimension::DIMLESS,
+    }
+    .into())
 }
 
 fn derivative_pow_qq(

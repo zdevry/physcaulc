@@ -6,10 +6,10 @@ where
     G: Fn(&Complex) -> Result<Complex, String>,
 {
     match val.try_promote_quantity() {
-        Some(q) => Ok(Value::Quantity(qfunc(&q)?)),
+        Some(q) => Ok(qfunc(&q)?.into()),
         None => {
             let c = val.promote_to_complex();
-            Ok(Value::Complex(cfunc(&c)?))
+            Ok(cfunc(&c)?.into())
         }
     }
 }
