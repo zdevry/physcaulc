@@ -34,6 +34,17 @@ where
 }
 
 impl Value {
+    pub fn negative(&self) -> Self {
+        match self {
+            &Self::Rational(r) => match r.checked_negative() {
+                Some(result) => return result.into(),
+                None => Quantity::from_rational(r).negative().into(),
+            },
+            Self::Quantity(q) => q.negative().into(),
+            Self::Complex(c) => c.negative().into(),
+        }
+    }
+
     pub fn add(&self, other: &Self) -> Result<Self, ValueError> {
         apply_value_binary_op(
             self,

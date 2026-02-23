@@ -1,3 +1,10 @@
+mod err;
+mod node;
+
+use crate::value::{SIDimension, Value, ValueError};
+use std::collections::HashMap;
+
+#[derive(Copy, Clone, Debug)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -6,12 +13,69 @@ pub enum BinaryOp {
     Pow,
 }
 
-pub enum Unary {
+#[derive(Clone, Debug)]
+pub enum UnaryOp {
     Negative,
+    Units(f64, SIDimension),
 }
 
+#[derive(Debug, Clone)]
 pub enum NodeContent {
-    Binary(Node, Node, BinaryOp),
+    Binary(Box<Node>, BinaryOp, Box<Node>),
+    Unary(UnaryOp, Box<Node>),
+    Function(String, Vec<Node>),
+    Value(Value),
+    Variable(String),
 }
 
-pub struct Node {}
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub content: NodeContent,
+    pub strpos: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum NodeErrorContent {
+    ValueError(ValueError),
+    NameError(String),
+    ParamCountError(usize, usize),
+    NestedError(Box<EvaluationError>),
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeError {
+    pub content: NodeErrorContent,
+    pub strpos: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Evaluator {
+    pub parent: Node,
+    pub evalstr: String,
+    pub params: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EvaluationError {
+    pub content: NodeErrorContent,
+    pub strpos: usize,
+    pub evalstr: String,
+}
+
+#[derive(Debug)]
+pub struct Environment {
+    pub consts: HashMap<String, Value>,
+    pub evaluators: HashMap<String, Evaluator>,
+}
+
+impl Evaluator {
+    pub fn eval(&self, env: &Environment, params: &[Value]) -> Result<Value, EvaluationError> {
+        // it is assumed that the amount of variables passed is correct
+        let labelled_params =
+            HashMap::from_iter(self.params.iter().cloned().zip(params.iter().cloned()));
+
+        self.parent
+            .eval(env, &labelled_params)
+            .map_err(|e| e.to_evalerr(&self.evalstr))
+    }
+}
