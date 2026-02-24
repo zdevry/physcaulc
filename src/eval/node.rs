@@ -14,14 +14,16 @@ impl Node {
     ) -> Result<Value, NodeError> {
         match &self.content {
             NodeContent::Binary(lhs, op, rhs) => {
-                eval_binary(lhs, rhs, *op, env, params, self.strpos)
+                eval_binary(lhs, rhs, *op, env, params, self.start, self.end)
             }
-            NodeContent::Unary(op, operand) => eval_unary(operand, op, env, params, self.strpos),
+            NodeContent::Unary(op, operand) => {
+                eval_unary(operand, op, env, params, self.start, self.end)
+            }
             NodeContent::Function(func, param_nodes) => {
-                eval_func(func, param_nodes, env, params, self.strpos)
+                eval_func(func, param_nodes, env, params, self.start, self.end)
             }
             NodeContent::Value(val) => Ok(val.clone()),
-            NodeContent::Variable(var) => eval_var(var, env, params, self.strpos),
+            NodeContent::Variable(var) => eval_var(var, env, params, self.start, self.end),
         }
     }
 }
@@ -31,17 +33,20 @@ fn eval_func(
     param_nodes: &[Node],
     env: &Environment,
     params: &HashMap<String, Value>,
-    strpos: usize,
+    start: usize,
+    end: usize,
 ) -> Result<Value, NodeError> {
     let evaluator = env.evaluators.get(func).ok_or_else(|| NodeError {
-        content: NodeErrorContent::NameError(func.into()),
-        strpos: strpos,
+        content: NodeErrorContent::FuncNameError(func.into()),
+        start,
+        end,
     })?;
 
     if evaluator.params.len() != param_nodes.len() {
         return Err(NodeError {
             content: NodeErrorContent::ParamCountError(evaluator.params.len(), param_nodes.len()),
-            strpos,
+            start,
+            end,
         });
     }
 
@@ -51,8 +56,9 @@ fn eval_func(
         .collect::<Result<Vec<Value>, NodeError>>()?;
 
     evaluator.eval(env, &param_values).map_err(|e| NodeError {
-        content: NodeErrorContent::NestedError(Box::new(e)),
-        strpos,
+        content: NodeErrorContent::NestedError(func.into(), Box::new(e)),
+        start,
+        end,
     })
 }
 
@@ -61,7 +67,8 @@ fn eval_unary(
     op: &UnaryOp,
     env: &Environment,
     params: &HashMap<String, Value>,
-    strpos: usize,
+    start: usize,
+    end: usize,
 ) -> Result<Value, NodeError> {
     let operand_value = operand.eval(env, params)?;
     match op {
@@ -85,7 +92,8 @@ fn eval_binary(
     op: BinaryOp,
     env: &Environment,
     params: &HashMap<String, Value>,
-    strpos: usize,
+    start: usize,
+    end: usize,
 ) -> Result<Value, NodeError> {
     let left = lhs.eval(env, params)?;
     let right = rhs.eval(env, params)?;
@@ -99,7 +107,8 @@ fn eval_binary(
     }
     .map_err(|e| NodeError {
         content: NodeErrorContent::ValueError(e),
-        strpos,
+        start,
+        end,
     })
 }
 
@@ -107,12 +116,17 @@ fn eval_var(
     var: &str,
     env: &Environment,
     params: &HashMap<String, Value>,
-    strpos: usize,
+    start: usize,
+    end: usize,
 ) -> Result<Value, NodeError> {
     let result = params.get(var).or_else(|| env.consts.get(var));
 
     match result {
         Some(v) => Ok(v.clone()),
-        None => Err(NodeError::name(var, strpos)),
+        None => Err(NodeError {
+            content: NodeErrorContent::VarNameError(var.into()),
+            start,
+            end,
+        }),
     }
 }

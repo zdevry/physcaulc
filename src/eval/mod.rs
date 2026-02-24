@@ -31,21 +31,24 @@ pub enum NodeContent {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub content: NodeContent,
-    pub strpos: usize,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Debug, Clone)]
 pub enum NodeErrorContent {
     ValueError(ValueError),
-    NameError(String),
+    VarNameError(String),
+    FuncNameError(String),
     ParamCountError(usize, usize),
-    NestedError(Box<EvaluationError>),
+    NestedError(String, Box<EvaluationError>),
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeError {
     pub content: NodeErrorContent,
-    pub strpos: usize,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +61,8 @@ pub struct Evaluator {
 #[derive(Debug, Clone)]
 pub struct EvaluationError {
     pub content: NodeErrorContent,
-    pub strpos: usize,
+    pub start: usize,
+    pub end: usize,
     pub evalstr: String,
 }
 
