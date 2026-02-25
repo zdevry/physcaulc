@@ -1,4 +1,4 @@
-use super::{EvaluationError, NodeError, NodeErrorContent};
+use super::{EvaluationError, NodeError};
 
 impl NodeError {
     pub fn to_evalerr(&self, s: &str) -> EvaluationError {

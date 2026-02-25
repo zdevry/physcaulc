@@ -25,23 +25,23 @@ impl<'a> Lexer<'a> {
         } else if currchar == '<' {
             self.lex_string()
         } else {
-            // Err(ParseError {
-            //     reason: format!("Unexpected character '{currchar}'"),
-            //     start: self.strpos,
-            //     end: self.strpos + 1,
-            // })
             self.next_char();
             Ok(self.create_token(TokenKind::Symbol(currchar)))
         }
     }
 
     fn lex_number(&mut self) -> Token {
-        self.consume_while(char::is_numeric);
+        self.consume_while(|c| c.is_numeric() || c == '_');
 
         // Buffer will always be populated by at least one numeric char here
         // because of the initial requirement of char::is_numeric for this function to be called
         if self.peek_char() != '.' {
-            let result = self.get_buffer_str().parse::<i32>().unwrap();
+            let clean_str = self
+                .get_buffer_str()
+                .chars()
+                .filter(|&c| c != '_')
+                .collect::<String>();
+            let result = clean_str.parse::<u32>().unwrap();
             return self.create_token(TokenKind::Integer(result));
         }
 

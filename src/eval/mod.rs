@@ -1,7 +1,10 @@
 mod err;
 mod node;
 
-use crate::value::{SIDimension, Value, ValueError};
+use crate::{
+    rational::Rational,
+    value::{SIDimension, Value, ValueError},
+};
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug)]
@@ -13,10 +16,18 @@ pub enum BinaryOp {
     Pow,
 }
 
+#[derive(Debug, Clone)]
+pub struct UnitTerm {
+    pub unit: String,
+    pub start: usize,
+    pub end: usize,
+    pub power: Rational,
+}
+
 #[derive(Clone, Debug)]
 pub enum UnaryOp {
     Negative,
-    Units(f64, SIDimension),
+    Units(Vec<UnitTerm>),
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +51,7 @@ pub enum NodeErrorContent {
     ValueError(ValueError),
     VarNameError(String),
     FuncNameError(String),
+    UnitNameError(String),
     ParamCountError(usize, usize),
     NestedError(String, Box<EvaluationError>),
 }
@@ -66,10 +78,17 @@ pub struct EvaluationError {
     pub evalstr: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ConversionValue {
+    pub factor: f64,
+    pub dim: SIDimension,
+}
+
 #[derive(Debug)]
 pub struct Environment {
     pub consts: HashMap<String, Value>,
     pub evaluators: HashMap<String, Evaluator>,
+    pub units: HashMap<String, ConversionValue>,
 }
 
 impl Evaluator {

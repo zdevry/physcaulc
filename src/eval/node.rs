@@ -1,8 +1,9 @@
-use super::{BinaryOp, Environment, Node, NodeContent, NodeError, NodeErrorContent};
 use crate::{
-    eval::UnaryOp,
+    eval::{
+        BinaryOp, Environment, Node, NodeContent, NodeError, NodeErrorContent, UnaryOp, UnitTerm,
+    },
     f64plus::FloatPlus,
-    value::{Quantity, Value},
+    value::{Quantity, SIDimension, Value},
 };
 use std::collections::HashMap;
 
@@ -73,17 +74,33 @@ fn eval_unary(
     let operand_value = operand.eval(env, params)?;
     match op {
         UnaryOp::Negative => Ok(operand_value.negative()),
-        &UnaryOp::Units(f, dim) => {
-            let factor: Value = Quantity {
-                value: FloatPlus::Scalar(f),
-                derivatives: HashMap::new(),
-                dim,
-            }
-            .into();
-
-            Ok(operand_value.mul(&factor).unwrap())
+        UnaryOp::Units(units) => {
+            let conversion = eval_unit_factors(&units, env)?;
+            Ok(operand_value.mul(&conversion.into()).unwrap())
         }
     }
+}
+
+fn eval_unit_factors(units: &[UnitTerm], env: &Environment) -> Result<Quantity, NodeError> {
+    let mut result_factor = 1.0;
+    let mut result_dim = SIDimension::DIMLESS;
+
+    for term in units {
+        let conversion = env.units.get(&term.unit).ok_or_else(|| NodeError {
+            content: NodeErrorContent::UnitNameError(term.unit.clone()),
+            start: term.start,
+            end: term.end,
+        })?;
+
+        result_factor *= conversion.factor.powf(term.power.into());
+        result_dim = result_dim.mul(&conversion.dim.pow(term.power));
+    }
+
+    Ok(Quantity {
+        value: FloatPlus::Scalar(result_factor),
+        derivatives: HashMap::new(),
+        dim: result_dim,
+    })
 }
 
 fn eval_binary(

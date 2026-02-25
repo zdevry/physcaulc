@@ -1,6 +1,6 @@
 use crate::utils::gcd;
 
-#[derive(Clone, Copy, PartialEq, Default)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Rational {
     pub numerator: i32,
     pub denominator: u32,
@@ -19,6 +19,12 @@ impl std::fmt::Display for Rational {
 impl std::fmt::Debug for Rational {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&self, f)
+    }
+}
+
+impl Default for Rational {
+    fn default() -> Self {
+        Rational::ZERO
     }
 }
 
